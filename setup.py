@@ -1,6 +1,7 @@
-from setuptools import setup
-from setuptools import find_packages
 import os.path
+
+from setuptools import find_packages
+from setuptools import setup
 
 
 def find_version(path):
@@ -10,6 +11,7 @@ def find_version(path):
     if version_match:
         return version_match.group(1)
     raise RuntimeError("Unable to find version string.")
+
 
 setup(name='ynab-csv-converter',
       version=find_version(os.path.join(os.path.dirname(__file__), 'ynab_csv_converter/__init__.py')),
@@ -23,6 +25,6 @@ setup(name='ynab-csv-converter',
       license='Apache License, Version 2.0',
       description='',
       long_description='''''',
-      author='Anders Ingemann',
+      author='Anders Ingemann, Thor K. Høgås',
       author_email='aim@secoya.dk',
       )

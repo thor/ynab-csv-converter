@@ -9,10 +9,11 @@ properties:
     enum:
     - sparekassen
     - danskebank
-    - nordnet
     - eika
     - hypovereinsbank
     - laanspar
+    - nordnet
+    - obos
   outpath: {$ref: '#/definitions/path'}
   archivepath: {$ref: '#/definitions/path'}
   outprefix: {$ref: '#/definitions/filename'}
