@@ -8,7 +8,7 @@ help tidy up or come with suggestions.
 
 This module is to be considered untested, unstable, alpha, et cetera.
 
-.. module:: obos
+.. module:: obos_recent
 
 .. moduleauthor:: Thor K. Høgås <thor at roht no>
 
@@ -21,10 +21,10 @@ import locale
 import re
 from collections import namedtuple
 
-from . import validate_line
-from .ynab import YnabLine
+from .. import validate_line
+from ..ynab import YnabLine
 
-ObosLine = namedtuple('ObosLine', ['date', 'type', 'text', 'amount'])
+ObosLine = namedtuple('ObosLine', ['date', 'intdate', 'type', 'text', 'amount', 'ref', 'account'])
 amount_pattern = r'^-?\d{1,}(\.\d{3})*(.\d{1,2})?$'
 date_pattern = r'^\d{2}\.\d{2}\.\d{4}'
 short_date_pattern = r'(?P<date>\d{2}\.\d{2})'
@@ -45,7 +45,7 @@ visa_payee_pattern = r'(?P<payee>.*?)( Kurs: (?P<rate>\d*\.\d*)|$)'
 
 
 def getlines(path):
-    with open(path, 'r', encoding='utf-8-sig') as handle:
+    with open(path, 'r', encoding='iso8859-1') as handle:
         transactions = csv.reader(handle, delimiter="\t", quotechar='"',
                                   quoting=csv.QUOTE_ALL)
         locale.setlocale(locale.LC_ALL, 'nb_NO.UTF-8')

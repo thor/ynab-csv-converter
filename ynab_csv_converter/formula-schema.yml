@@ -13,7 +13,8 @@ properties:
     - hypovereinsbank
     - laanspar
     - nordnet
-    - obos
+    - obos.recent
+    - obos.archive
   outpath: {$ref: '#/definitions/path'}
   archivepath: {$ref: '#/definitions/path'}
   outprefix: {$ref: '#/definitions/filename'}
