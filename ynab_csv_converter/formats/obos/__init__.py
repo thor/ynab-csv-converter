@@ -20,12 +20,16 @@ visa_payee_pattern = r'(?P<payee>.*?)( Kurs: (?P<rate>\d*\.\d*)|$)'
 
 def is_avtalegiro(input_line):
     """ Check if it's an AvtaleGiro transaction (automatic invoice) """
-    return input_line.type in ('AvtaleGiro', 'AVTGI')
+    return input_line.type in ('AvtaleGiro', 'AVTGI', 'IAVTG')
 
 
 def is_purchase(input_line):
     """ Check if it's a purchase transaction """
     return input_line.type in ('Varekjøp', 'VARER', 'VISA VARE')
+
+def is_stocks(input_line):
+    """ Check if it's a type of "verdipapir" (stocks or similarly) """
+    return input_line.type in ('VPAPIR')
 
 
 def try_improve_date(output: dict, input: namedtuple):
@@ -75,6 +79,9 @@ def try_improve_with_memo(output: dict, input: namedtuple):
     meta_pattern = r'(?P<type>Nettgiro til|Nettgiro fra|Fra|Til|Betalt): (?P<target>.*?)(?= (Fra|Til|Betalt)|$)'
     payee_keys = ('Til', 'Fra', 'Nettgiro fra', 'Nettgiro til')
 
+    # Go through each Key: value entry in the text field and add them
+    meta_matches = list(re.finditer(meta_pattern, input.text))
+
     # Ordinary purchases don't need any of these
     if is_purchase(input):
         return
@@ -84,20 +91,22 @@ def try_improve_with_memo(output: dict, input: namedtuple):
         output['memo'] += f"{input.type.lower().capitalize()}"
 
     if is_avtalegiro(input):
-        output['memo'] = "AvtaleGiro "
+        output['memo'] = "AvtaleGiro"
+
+    if is_stocks(input):
+        output['memo'] = "Verdipapir(er)"
+
+    if (is_avtalegiro(input) or is_stocks(input)) and not meta_matches:
         output['payee'] = re.sub(meta_pattern, "", input.text)
         return
 
-    # Go through each Key: value entry in the text field and add them
-    for match in re.finditer(meta_pattern, input.text):
-        meta = match.groupdict()
+    for meta in (x.groupdict() for x in meta_matches):
         key, value = meta['type'], meta['target']
         if key in payee_keys and not output['payee']:
             output['payee'] = value
             continue
 
         output['memo'] += f" {key}: {value}"
-
 
 def getlines_shared(path: str, column_patterns: dict, processors: dict, line_type: namedtuple):
     with open(path, 'r', encoding='iso8859-1') as handle:

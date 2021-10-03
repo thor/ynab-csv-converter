@@ -52,7 +52,10 @@ def getlines(path):
             try_improve_from_purchase
         ],
         'AVTGI': [],
+        'IAVTG': [],
         'E-FAKTURA': [],
-        'NETTGIRO': []
+        'NETTGIRO': [],
+        'MOBILGIRO': [],
+        'VPAPIR': []
     }
     yield from getlines_shared(path, column_patterns, processors, ObosArchiveLine)
