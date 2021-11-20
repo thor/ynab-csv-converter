@@ -17,6 +17,7 @@ properties:
       - laanspar
       - saxotradergo
       - banknordik
+      - banknorwegian
       - obos.recent
       - obos.archive
   outpath: {$ref: '#/definitions/path'}

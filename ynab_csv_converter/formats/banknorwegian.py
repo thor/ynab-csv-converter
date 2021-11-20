@@ -4,6 +4,7 @@ import locale
 import re
 from collections import namedtuple
 
+import pandas as pd
 from ynab_csv_converter.formats import validate_line
 from ynab_csv_converter.formats.ynab import YnabLine
 
@@ -110,42 +111,32 @@ def try_improve_with_memo(output: dict, input: namedtuple):
         output['memo'] += f" {key}: {value}"
 
 
-def getlines_shared(path: str, column_patterns: dict, processors: dict, line_type: namedtuple):
-    with open(path, 'r', encoding='iso8859-1') as handle:
-        # Compile patterns and load with tab delimiter
-        column_patterns = {column: re.compile(regex) for column, regex in column_patterns.items()}
-        transactions = csv.reader(handle, delimiter="\t", quotechar='"',
-                                  quoting=csv.QUOTE_ALL)
-        locale.setlocale(locale.LC_ALL, 'nb_NO.UTF-8')
+def getlines(path: str):
+    # Load the transactions
+    sheet = pd.read_excel(path, sheet_name=None)
+    dfs: pd.DataFrame = sheet['transactions']
+    dfs = dfs.convert_dtypes()
+    for i, row in dfs.iterrows():
+        try:
+            result = {'date': row['TransactionDate'].to_pydatetime(),
+                      'payee': row['Text'], 'category': "",
+                      'memo': row['Merchant Category'], 'outflow': 0.0, 'inflow': 0.0}
 
-        # Skip header
-        next(transactions)
+            amount = row['Amount']
+            result.update({
+                'outflow': 0.0 if amount > 0 else -amount,
+                'inflow': 0.0 if amount < 0 else amount,
+            })
 
-        [x.extend([try_improve_with_memo, try_add_account_information]) for x in processors.values()]
+            if row['Currency'] != 'NOK':
+                result['memo'] += f" {row['Currency Amount']} {row['Currency']}"
 
-        for raw_line in transactions:
-            try:
-                line = line_type(*raw_line)
-                validate_line(line, column_patterns)
-                result = {'date': datetime.datetime.strptime(line.date, '%d.%m.%Y'),
-                          'payee': None, 'category': "",
-                          'memo': "", 'outflow': 0.0, 'inflow': 0.0}
+        except Exception as e:
+            import sys
+            msg = ("There was a problem on line {line} in {path}, Python line {line_code}\n"
+                   .format(line=i, path=path, line_code=sys.exc_info()[2].tb_lineno))
+            sys.stderr.write(msg)
+            raise e
 
-                amount = locale.atof(line.amount)
-                result.update({
-                    'outflow': 0.0 if amount > 0 else -amount,
-                    'inflow': 0.0 if amount < 0 else amount,
-                })
-
-                for improvement_function in processors[line.type]:
-                    improvement_function(result, line)
-
-            except Exception as e:
-                import sys
-                msg = ("There was a problem on line {line} in {path}, Python line {line_code}\n"
-                       .format(line=transactions.line_num, path=path, line_code=sys.exc_info()[2].tb_lineno))
-                sys.stderr.write(raw_line[2] + "\n")
-                sys.stderr.write(msg)
-                raise e
-
-            yield YnabLine(**result)
+        print(result)
+        yield YnabLine(**result)
