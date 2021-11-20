@@ -7,18 +7,18 @@ additionalProperties: false
 properties:
   format:
     enum:
-    - sparekassen
-    - danskebank
-    - nordnet
-    - eika
-    - hypovereinsbank
-    - americanexpress
-    - starmoney
-    - laanspar
-    - saxotradergo
-    - banknordik
-    - obos.recent
-    - obos.archive
+      - sparekassen
+      - danskebank
+      - nordnet
+      - eika
+      - hypovereinsbank
+      - americanexpress
+      - starmoney
+      - laanspar
+      - saxotradergo
+      - banknordik
+      - obos.recent
+      - obos.archive
   outpath: {$ref: '#/definitions/path'}
   archivepath: {$ref: '#/definitions/path'}
   outprefix: {$ref: '#/definitions/filename'}
