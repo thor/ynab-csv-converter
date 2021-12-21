@@ -128,6 +128,9 @@ def getlines(path: str):
                 'inflow': 0.0 if amount < 0 else amount,
             })
 
+            if amount > 0:
+                result['memo'] = ""
+
             if row['Currency'] != 'NOK':
                 result['memo'] += f" {row['Currency Amount']} {row['Currency']}"
 
