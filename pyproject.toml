@@ -1,15 +1,14 @@
-[build-system]
-requires = ["flit"]
-build-backend = "flit.buildapi"
+#[tool.flit.metadata]
+#dist-name = "ynab-csv-converter"
+#module = "ynab_csv_converter"
 
-[tool.flit.metadata]
-dist-name = "ynab-csv-converter"
-module = "ynab_csv_converter"
-author = "Anders Ingemann"
-author-email = "anders@ingemann.de"
-home-page = "https://github.com/andsens/ynab-csv-converter"
-description-file = "README.md"
+[tool.poetry]
+name = "ynab-csv-converter"
+version = "1.0.1"
+description = "A simple CSV-based YNAB converter"
+authors = ["Anders Ingemann <anders@ingemann.de>"]
 license = "Apache-2.0"
+homepage = "https://github.com/andsens/ynab-csv-converter"
 classifiers = [
   "Topic :: Utilities",
   "Programming Language :: Python :: 3",
@@ -17,20 +16,22 @@ classifiers = [
   "Programming Language :: Python :: 3.6",
   "License :: OSI Approved :: MIT License",
 ]
-requires-python = ">=3.5"
-requires = [
-	"pyyaml >= 3.10",
-	"jsonschema >= 2.3.0", 
-	"docopt >= 0.6.1",
-	"pandas",
-	"openpyxl"
-]
 
-[tool.flit.scripts]
-"ynab-csv-converter" = "ynab_csv_converter.__main__:main"
+[tool.poetry.dependencies]
+python = "^3.8"
+pyyaml = ">=3.10"
+docopt = ">=0.6.1"
+jsonschema = ">=2.3.0"
+openpyxl = "^3.0.10"
+pandas = "^1.4.4"
 
-[tool.flit.metadata.requires-extra]
-test = [
-  "tox",
-  "flake8",
-]
+[tool.poetry.dev-dependencies]
+tox = "^3.26.0"
+flake8 = "^5.0.4"
+
+[tool.python.scripts]
+ynab-csv-converter = "ynab_csv_converter.__main__:main"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
