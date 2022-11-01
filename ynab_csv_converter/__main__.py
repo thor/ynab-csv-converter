@@ -64,8 +64,8 @@ def convert(opts):
     from itertools import chain
     formula, formula_module = load_formula(opts['FORMULA'])
 
-    out_prefix = os.path.join(formula['outpath'], formula['outprefix'])
-    archive_prefix = os.path.join(formula['archivepath'], formula['outprefix'])
+    out_prefix = os.path.expandvars(os.path.join(formula['outpath'], formula['outprefix']))
+    archive_prefix = os.path.expandvars(os.path.join(formula['archivepath'], formula['outprefix']))
 
     for import_file in opts['INFILE']:
         # Get the lines to import
