@@ -119,7 +119,7 @@ def getlines(path: str):
     with open(path, 'r', encoding='utf-8-sig') as handle:
         transactions = csv.reader(handle, delimiter=',', quotechar='"',
                                   quoting=csv.QUOTE_ALL)
-        locale.setlocale(locale.LC_ALL, 'no_NO.UTF-8')
+        locale.setlocale(locale.LC_ALL, 'nb_NO.UTF-8')
 
         next(transactions)
 
