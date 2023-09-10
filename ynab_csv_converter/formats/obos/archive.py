@@ -40,6 +40,7 @@ def getlines(path):
         'OVERFØRT': [
             try_improve_incoming_transaction
         ],
+        'STRAKSBET': [],
         'StraksOvf': [
             try_improve_from_vipps
         ],
@@ -56,6 +57,7 @@ def getlines(path):
         'E-FAKTURA': [],
         'NETTGIRO': [],
         'MOBILGIRO': [],
-        'VPAPIR': []
+        'VPAPIR': [],
+        'KREDITRTE': []
     }
     yield from getlines_shared(path, column_patterns, processors, ObosArchiveLine)
