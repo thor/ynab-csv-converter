@@ -2,3 +2,4 @@
 /dist
 /.tox
 /ynab_csv_converter.egg-info
+/.direnv
