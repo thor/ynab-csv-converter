@@ -93,7 +93,7 @@ def convert(opts):
         unique_lines = [line for line in all_lines if line not in consolidation_lines]
 
         if len(unique_lines) > 0:
-            output_filepath, fromdate, todate, increment = get_filename_parts(out_prefix, unique_lines)
+            output_filepath, _, _, increment = get_filename_parts(out_prefix, unique_lines)
 
             # Write import lines to outputfile
             with ynab.write_file(output_filepath) as put_line:
