@@ -1,9 +1,19 @@
 #!/usr/bin/env python3
+import docopt
+import sys
+import os
+import os.path
+import shutil
+import datetime
+import re
+import glob
 
+from . import load_formula
+from .formats import ynab
+from itertools import chain
+from . import __doc__ as doc
 
 def main():
-    import docopt
-    from . import __doc__ as doc
     opts = docopt.docopt(doc)
     try:
         if opts['consolidate']:
@@ -13,16 +23,11 @@ def main():
     except Exception as e:
         if opts['--debug']:
             raise
-        import sys
         sys.stderr.write(str(e) + '\n')
         sys.exit(1)
 
 
 def consolidate(opts):
-    from . import load_formula
-    from .formats import ynab
-    import os
-    from itertools import chain
     formula, formula_module = load_formula(opts['FORMULA'])
 
     out_prefix = os.path.join(formula['outpath'], formula['outprefix'])
@@ -57,11 +62,6 @@ def consolidate(opts):
 
 
 def convert(opts):
-    from . import load_formula
-    from .formats import ynab
-    import os.path
-    import shutil
-    from itertools import chain
     formula, formula_module = load_formula(opts['FORMULA'])
 
     out_prefix = os.path.expandvars(os.path.join(formula['outpath'], formula['outprefix']))
@@ -130,9 +130,6 @@ def find_daterange(prefix, min_date, max_date):
 
 
 def find_files(prefix):
-    import datetime
-    import re
-    import glob
     file_pattern = re.compile(
         r'^' + re.escape(prefix) + r'\-(?P<to>\d{8})\-(?P<from>\d{8})(\-(?P<inc>\d+))?\.csv$')
     for path in glob.glob(prefix + '-' + '[0-9]' * 8 + '-' + '[0-9]' * 8 + '*.csv'):
@@ -148,7 +145,6 @@ def find_files(prefix):
 
 
 def get_filename_parts(out_prefix, lines):
-    import os.path
     # Find the daterange in the lines supplied and create the name for the output file with that
     # We reverse the date order so that the files are sorted by newest transaction
     fromdate = min([line.date for line in lines])
