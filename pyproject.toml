@@ -30,7 +30,7 @@ pydantic = "^2.3.0"
 tox = "^3.26.0"
 flake8 = "^5.0.4"
 
-[tool.python.scripts]
+[tool.poetry.scripts]
 ynab-csv-converter = "ynab_csv_converter.__main__:main"
 
 [build-system]
