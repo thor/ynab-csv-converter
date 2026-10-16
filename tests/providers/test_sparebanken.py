@@ -3,7 +3,6 @@ from decimal import Decimal
 
 import pytest
 
-from tests.legacy import legacy_transactions
 from ynab_csv_converter.providers.base import ParseError
 from ynab_csv_converter.providers.sparebanken import provider
 from ynab_csv_converter.transaction import Transaction
@@ -28,11 +27,6 @@ def test_parses_export(tmp_path):
         Transaction(date(2024, 2, 3), "Rema 1000", Decimal("-1234.5")),
         Transaction(date(2024, 2, 4), "Korrigering", Decimal("70.00")),
     ]
-
-
-def test_matches_legacy_parser(tmp_path):
-    path = write_export(tmp_path)
-    assert provider.read_transactions(path) == legacy_transactions("sparebanken", path)
 
 
 @pytest.mark.parametrize(

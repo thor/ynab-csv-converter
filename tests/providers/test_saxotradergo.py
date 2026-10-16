@@ -4,7 +4,6 @@ from decimal import Decimal
 
 from openpyxl import Workbook
 
-from tests.legacy import legacy_transactions
 from ynab_csv_converter.providers.saxotradergo import parse_value_date, provider
 from ynab_csv_converter.transaction import Transaction
 
@@ -68,8 +67,3 @@ def test_month_names_do_not_depend_on_locale():
         assert parse_value_date("05-05-2024") == date(2024, 5, 5)
     finally:
         locale.setlocale(locale.LC_TIME, saved_locale)
-
-
-def test_matches_legacy_parser(tmp_path):
-    path = write_csv(tmp_path)
-    assert provider.read_transactions(path) == legacy_transactions("saxotradergo", path)

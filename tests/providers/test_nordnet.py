@@ -1,7 +1,6 @@
 from datetime import date
 from decimal import Decimal
 
-from tests.legacy import legacy_transactions
 from ynab_csv_converter.providers.nordnet import provider
 from ynab_csv_converter.transaction import Transaction
 
@@ -77,10 +76,3 @@ def test_accepts_no_break_space_thousands(tmp_path):
         Decimal("1234.56"),
         Decimal("1000.00"),
     ]
-
-
-def test_matches_legacy_parser(tmp_path, monkeypatch):
-    # Legacy reads number formats from the process locale.
-    monkeypatch.setenv("LC_ALL", "da_DK.UTF-8")
-    path = write_export(tmp_path)
-    assert provider.read_transactions(path) == legacy_transactions("nordnet", path)

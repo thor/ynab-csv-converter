@@ -3,7 +3,6 @@ from decimal import Decimal
 
 import pytest
 
-from tests.legacy import legacy_transactions
 from ynab_csv_converter.providers.americanexpress import provider
 from ynab_csv_converter.transaction import Transaction
 
@@ -36,8 +35,3 @@ def test_charges_are_outflow_and_payments_are_inflow(export):
 
     assert (charge.outflow, charge.inflow) == (Decimal("12.50"), 0)
     assert (payment.outflow, payment.inflow) == (0, Decimal("500.00"))
-
-
-def test_matches_legacy_parser(export):
-    """Legacy got the signed net amount right; only its column split was wrong."""
-    assert provider.read_transactions(export) == legacy_transactions("americanexpress", export)

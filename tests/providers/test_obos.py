@@ -3,8 +3,6 @@ from decimal import Decimal
 
 import pytest
 
-from tests.legacy import legacy_transactions
-from ynab_csv_converter.formats import obos as legacy_obos
 from ynab_csv_converter.providers.base import ParseError
 from ynab_csv_converter.providers.obos import archive, recent
 from ynab_csv_converter.transaction import Transaction
@@ -90,26 +88,6 @@ def test_parses_archive_export(tmp_path):
         Transaction(date(2024, 3, 3), "KLP AksjeNorge", Decimal("-1000.00"), "Verdipapir(er)"),
         Transaction(date(2024, 3, 3), "Nordnet", Decimal("-500.00"), "Verdipapir(er)"),
         Transaction(date(2024, 3, 4), "", Decimal("3.21"), "Kreditrte"),
-    ]
-
-
-def test_archive_matches_legacy_parser(tmp_path):
-    path = write_export(tmp_path, ARCHIVE)
-    assert archive.provider.read_transactions(path) == _legacy_with_empty_payee("obos.archive", path)
-
-
-def test_recent_matches_legacy_parser(tmp_path, monkeypatch):
-    # Legacy recent crashes on every row: it reads an account column that recent exports lack.
-    monkeypatch.setattr(legacy_obos, "try_add_account_information", lambda output, line: None)
-    path = write_export(tmp_path, RECENT)
-    assert recent.provider.read_transactions(path) == _legacy_with_empty_payee("obos.recent", path)
-
-
-def _legacy_with_empty_payee(format_key, path):
-    # Legacy leaves payee None when the text has no counterparty; the CSV writer printed it as "".
-    return [
-        Transaction(t.date, t.payee or "", t.amount, t.memo, t.category)
-        for t in legacy_transactions(format_key, path)
     ]
 
 

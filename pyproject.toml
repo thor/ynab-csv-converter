@@ -26,16 +26,6 @@ dev = [
   "pytest>=8",
   "ruff>=0.6",
 ]
-# Only needed by the legacy formats/ package, which is being replaced by providers/.
-legacy = [
-  "docopt>=0.6.2",
-  "jsonschema>=4",
-  "pandas>=2",
-  "pydantic>=2",
-]
-
-[tool.uv]
-default-groups = ["dev", "legacy"]
 
 [build-system]
 requires = ["hatchling"]

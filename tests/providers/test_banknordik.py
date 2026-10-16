@@ -1,7 +1,6 @@
 from datetime import date
 from decimal import Decimal
 
-from tests.legacy import legacy_transactions
 from ynab_csv_converter.providers.banknordik import provider
 from ynab_csv_converter.transaction import Transaction
 
@@ -22,8 +21,3 @@ def test_parses_export(tmp_path):
         Transaction(date(2024, 2, 3), "Føroya Keypsamtøkan", Decimal("-1234.50")),
         Transaction(date(2024, 2, 1), "Løn", Decimal("25000.00")),
     ]
-
-
-def test_matches_legacy_parser(tmp_path):
-    path = write_export(tmp_path)
-    assert provider.read_transactions(path) == legacy_transactions("banknordik", path)

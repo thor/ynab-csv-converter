@@ -3,7 +3,6 @@ from decimal import Decimal
 
 import pytest
 
-from tests.legacy import legacy_transactions
 from ynab_csv_converter.providers.base import ParseError
 from ynab_csv_converter.providers.eika import provider
 from ynab_csv_converter.transaction import Transaction
@@ -36,11 +35,6 @@ def test_parses_export(tmp_path):
         Transaction(date(2024, 3, 20), "ACME AS", Decimal("35000.00")),
         Transaction(date(2024, 3, 21), "Overføring til sparekonto", Decimal("-500.00")),
     ]
-
-
-def test_matches_legacy_parser(tmp_path):
-    path = write_export(tmp_path)
-    assert provider.read_transactions(path) == legacy_transactions("eika", path)
 
 
 def test_rejects_unrecognised_salary_text(tmp_path):

@@ -3,7 +3,6 @@ from decimal import Decimal
 
 import pytest
 
-from tests.legacy import legacy_transactions
 from ynab_csv_converter.providers.hypovereinsbank import provider
 from ynab_csv_converter.transaction import Transaction
 
@@ -38,7 +37,3 @@ def test_parses_export(export):
             date(2024, 2, 6), "Ueberweisung", Decimal("-12.34"), memo=" Empfänger 2: Erika mustermann"
         ),
     ]
-
-
-def test_matches_legacy_parser(export):
-    assert provider.read_transactions(export) == legacy_transactions("hypovereinsbank", export)

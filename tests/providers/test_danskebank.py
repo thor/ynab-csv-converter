@@ -3,7 +3,6 @@ from decimal import Decimal
 
 import pytest
 
-from tests.legacy import legacy_transactions
 from ynab_csv_converter.providers.base import ParseError
 from ynab_csv_converter.providers.danskebank import provider
 from ynab_csv_converter.transaction import Transaction
@@ -34,8 +33,3 @@ def test_rejects_pending_rows(tmp_path):
     pending = EXPORT.splitlines()[0] + '\n"05.01.2024";"Netto";"-10,00";"1.990,00";"Venter";"Nej"\n'
     with pytest.raises(ParseError, match="not completed"):
         provider.read_transactions(write_export(tmp_path, pending))
-
-
-def test_matches_legacy_parser(tmp_path):
-    path = write_export(tmp_path)
-    assert provider.read_transactions(path) == legacy_transactions("danskebank", path)

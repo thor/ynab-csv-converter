@@ -3,7 +3,6 @@ from decimal import Decimal
 
 import pytest
 
-from tests.legacy import legacy_transactions
 from ynab_csv_converter.providers.base import ParseError
 from ynab_csv_converter.providers.starmoney import provider
 from ynab_csv_converter.transaction import Transaction
@@ -50,7 +49,3 @@ def test_rejects_extra_column(tmp_path):
 
     with pytest.raises(ParseError, match="Expected 20 columns, got 21"):
         provider.read_transactions(path)
-
-
-def test_matches_legacy_parser(export):
-    assert provider.read_transactions(export) == legacy_transactions("starmoney", export)
