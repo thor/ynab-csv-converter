@@ -53,7 +53,7 @@ def test_first_import(home):
     result = run(home, "convert", export(home, "july.csv", JULY), input="y\n")
 
     assert result.exit_code == 0, result.output
-    assert "First import" in result.output
+    assert f"First import for this formula (nothing in {(home / 'out').resolve()} yet)." in result.output
     assert "4 read, 4 new, 0 already converted" in result.output
     assert "Kaffe" in result.output
     assert names(home / "out") == ["spk-20260731-20260701.csv"]
@@ -70,8 +70,35 @@ def test_reimport_finds_only_duplicates(home):
     assert result.exit_code == 0, result.output
     assert "4 read, 0 new, 4 already converted" in result.output
     assert "Already imported" in result.output
+    assert "[y/N]" in result.output
+    assert "on dates already imported" not in result.output
     assert names(home / "out") == ["spk-20260731-20260701.csv"]
     assert names(home / "archive") == ["spk-20260731-20260701-1.csv", "spk-20260731-20260701.csv"]
+
+
+def test_reimport_is_skipped_by_default(home):
+    run(home, "convert", "-y", export(home, "july.csv", JULY))
+
+    result = run(home, "convert", export(home, "july.csv", JULY), input="\n")
+
+    assert result.exit_code == 0, result.output
+    assert "Skipped" in result.output
+    assert (home / "july.csv").exists()
+    assert names(home / "archive") == ["spk-20260731-20260701.csv"]
+
+
+def test_new_rows_on_imported_dates_warn_but_default_to_yes(home):
+    run(home, "convert", "-y", export(home, "july.csv", JULY))
+    changed = JULY.replace("Netto", "NETTO 1234") + AUGUST
+
+    result = run(home, "convert", export(home, "july-aug.csv", changed), input="\n")
+
+    assert result.exit_code == 0, result.output
+    assert "1 new row falls on dates already imported. Check they are not duplicates with changed text." in (
+        result.output
+    )
+    assert "[Y/n]" in result.output
+    assert not (home / "july-aug.csv").exists()
 
 
 def test_one_of_two_identical_rows_is_new(home):
@@ -191,6 +218,29 @@ def test_status(home):
     assert f"Last import ends 2026-09-30, {days} days ago." in result.output
 
 
+def test_status_shows_gap_hidden_by_a_consolidated_file(home):
+    (home / "archive").mkdir()
+    (home / "archive" / "spk-20260203-20260201.csv").write_text("")
+    (home / "archive" / "spk-20260310-20260310.csv").write_text("")
+    (home / "out").mkdir()
+    (home / "out" / "spk-20260310-20260201.csv").write_text("")
+
+    result = run(home, "status")
+
+    assert result.exit_code == 0, result.output
+    assert "Missing 2026-02-04 to 2026-03-09 (34 days)" in result.output
+
+
+def test_status_pluralises_one_day(home):
+    (home / "archive").mkdir()
+    (home / "archive" / "spk-20260701-20260701.csv").write_text("")
+    (home / "archive" / "spk-20260703-20260703.csv").write_text("")
+
+    result = run(home, "status")
+
+    assert "Missing 2026-07-02 to 2026-07-02 (1 day)" in result.output
+
+
 def test_status_without_imports(home):
     assert "No imports yet." in run(home, "status").output
 
@@ -208,6 +258,20 @@ def test_consolidate(home):
     assert sum(t.payee == "Kaffe" for t in merged) == 2
 
 
+def test_consolidate_empty_files(home):
+    (home / "out").mkdir()
+    (home / "out" / "spk-20260710-20260701.csv").write_text("Date,Payee,Category,Memo,Outflow,Inflow\n")
+    (home / "out" / "spk-20260731-20260720.csv").write_text("Date,Payee,Category,Memo,Outflow,Inflow\n")
+
+    result = run(home, "consolidate", "-y")
+
+    assert result.exit_code == 0, result.output
+    assert "Merge 2 files with 0 transactions:" in result.output
+    assert "No transactions, removed 2 files." in result.output
+    assert "None" not in result.output
+    assert names(home / "out") == []
+
+
 def test_consolidate_declined_changes_nothing(home):
     run(home, "convert", "-y", export(home, "july.csv", JULY))
     run(home, "convert", "-y", export(home, "aug.csv", AUGUST))
@@ -221,7 +285,7 @@ def test_consolidate_declined_changes_nothing(home):
 def test_consolidate_needs_two_files(home):
     run(home, "convert", "-y", export(home, "july.csv", JULY))
 
-    assert "Nothing to consolidate" in run(home, "consolidate", "-y").output
+    assert "Nothing to consolidate: 1 converted file." in run(home, "consolidate", "-y").output
 
 
 def test_providers():

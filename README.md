@@ -42,6 +42,9 @@ Convert sep.csv? [y/N]:
 ```
 
 Files given together count as one batch, so converting August and September in one go is not a gap.
+A file with nothing new whose dates are all imported already defaults to No.
+New rows on dates already imported get a warning: they may be old rows whose payee or memo text changed.
+Imported dates come from the archive, or from converted files when the archive is empty.
 `--yes` skips the prompt but refuses to write when dates are missing, unless you add `--allow-gaps`.
 `--dry-run` (or `preview`) writes nothing. `--debug` shows tracebacks.
 
@@ -60,6 +63,7 @@ max_gap_days: 7              # optional, missing days allowed before warning
 
 Files are named `<outprefix>-<newest date>-<oldest date>[-n].<suffix>`, so the newest sort last.
 The archive keeps the export's own suffix, e.g. `.xlsx`.
+A name that starts like one but does not match, e.g. `... copy.csv`, stops the run until you rename or remove it.
 
 ## Supported formats
 
@@ -86,13 +90,14 @@ A provider is one module in `ynab_csv_converter/providers/`. It says how to read
 `Transaction`. See `sparekassen.py` for the smallest example:
 
 ```python
-def parse_row(row: Row) -> Transaction | None:      # None skips the row
+def parse_row(row: Row) -> Transaction | None:  # None skips the row
     booking_date, _transaction_date, text, amount, _balance = row
     return Transaction(
         date=parse_date(booking_date, "%d-%m-%Y"),
         payee=text,
         amount=parse_amount(amount, decimal_mark=",", thousands_mark="."),  # negative is outflow
     )
+
 
 provider = Provider(
     key="sparekassen",

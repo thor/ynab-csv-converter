@@ -40,11 +40,3 @@ PROVIDERS: dict[str, Provider] = {
         starmoney,
     ]
 }
-
-
-def get_provider(key: str) -> Provider:
-    try:
-        return PROVIDERS[key]
-    except KeyError:
-        known = ", ".join(sorted(PROVIDERS))
-        raise KeyError(f"Unknown format {key!r}. Known formats: {known}") from None

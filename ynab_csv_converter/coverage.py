@@ -1,7 +1,6 @@
 """Which dates are already imported, and which are missing.
 
-Coverage is the union of date ranges of archived exports and converted files.
-Everything here is pure: dates in, dates out.
+Coverage is the union of date ranges of archived exports. Everything here is pure: dates in, dates out.
 """
 
 from collections.abc import Iterable, Sequence
@@ -9,6 +8,8 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from itertools import pairwise
 from typing import Literal
+
+from .transaction import Transaction
 
 ONE_DAY = timedelta(days=1)
 
@@ -34,8 +35,16 @@ class DateRange:
     def contains(self, other: "DateRange") -> bool:
         return self.first <= other.first and other.last <= self.last
 
+    def overlaps(self, other: "DateRange") -> bool:
+        return self.first <= other.last and other.first <= self.last
+
     def __str__(self) -> str:
         return f"{self.first} to {self.last}"
+
+
+def span_of(transactions: Iterable[Transaction]) -> DateRange | None:
+    dates = [transaction.date for transaction in transactions]
+    return DateRange.spanning(dates) if dates else None
 
 
 def merge(ranges: Iterable[DateRange]) -> list[DateRange]:
@@ -114,9 +123,11 @@ def is_already_imported(span: DateRange, existing: Sequence[DateRange], new_coun
     return new_count == 0 and _is_covered(span, merge(existing))
 
 
+def count_covered(dates: Iterable[date], existing: Sequence[DateRange]) -> int:
+    """How many of `dates` fall inside `existing`."""
+    merged = merge(existing)
+    return sum(any(block.first <= day <= block.last for block in merged) for day in dates)
+
+
 def _is_covered(span: DateRange, merged: list[DateRange]) -> bool:
     return any(block.contains(span) for block in merged)
-
-
-def days_since(day: date, today: date) -> int:
-    return (today - day).days

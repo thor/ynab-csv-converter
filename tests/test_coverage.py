@@ -1,5 +1,6 @@
 import calendar
 from datetime import date
+from decimal import Decimal
 
 import pytest
 
@@ -7,11 +8,13 @@ from ynab_csv_converter.coverage import (
     DateRange,
     Gap,
     batch_gaps,
-    days_since,
+    count_covered,
     holes,
     is_already_imported,
     merge,
+    span_of,
 )
+from ynab_csv_converter.transaction import Transaction
 
 
 def span(first: str, last: str) -> DateRange:
@@ -148,5 +151,21 @@ def test_already_imported():
     assert not is_already_imported(month(7), [], new_count=0)
 
 
-def test_days_since():
-    assert days_since(date(2026, 7, 31), today=date(2026, 10, 16)) == 77
+def test_span_of():
+    rows = [Transaction(date(2026, 7, day), "Shop", Decimal(-1)) for day in (9, 3, 5)]
+
+    assert span_of(rows) == span("2026-07-03", "2026-07-09")
+    assert span_of([]) is None
+
+
+def test_overlaps():
+    assert month(7).overlaps(span("2026-07-31", "2026-08-02"))
+    assert span("2026-06-20", "2026-08-02").overlaps(month(7))
+    assert not month(7).overlaps(month(8))
+
+
+def test_count_covered():
+    days = [date(2026, 7, 31), date(2026, 8, 1), date(2026, 9, 2)]
+
+    assert count_covered(days, [month(7), month(9)]) == 2
+    assert count_covered(days, []) == 0

@@ -5,8 +5,17 @@ from pathlib import Path
 import pytest
 
 from ynab_csv_converter import ynab_csv
-from ynab_csv_converter.convert import ImportBatch, SourceError, apply, new_transactions
+from ynab_csv_converter.convert import (
+    ImportBatch,
+    SourceError,
+    _archive_suffix,
+    apply,
+    existing_coverage,
+    new_transactions,
+)
+from ynab_csv_converter.coverage import DateRange
 from ynab_csv_converter.formula import Formula
+from ynab_csv_converter.store import StoreError
 from ynab_csv_converter.transaction import Transaction
 
 
@@ -121,3 +130,77 @@ def test_undecodable_source_names_the_file(tmp_path, formula):
 
     with pytest.raises(SourceError, match="binary.csv: "):
         ImportBatch.read(formula, [path])
+
+
+def stored(folder: Path, name: str, *transactions: Transaction) -> Path:
+    folder.mkdir(exist_ok=True)
+    ynab_csv.write(folder / name, transactions)
+    return folder / name
+
+
+def test_coverage_comes_from_the_archive_not_consolidated_files(formula):
+    stored(formula.archivepath, "spk-20260703-20260701.csv")
+    stored(formula.archivepath, "spk-20260731-20260720.csv")
+    stored(formula.outpath, "spk-20260731-20260701.csv", coffee(1), coffee(31))
+
+    assert existing_coverage(formula) == [
+        DateRange(date(2026, 7, 1), date(2026, 7, 3)),
+        DateRange(date(2026, 7, 20), date(2026, 7, 31)),
+    ]
+
+
+def test_coverage_falls_back_to_converted_files_without_archive(tmp_path, formula):
+    stored(formula.outpath, "spk-20260731-20260701.csv", coffee(1), coffee(31))
+    path = export(tmp_path / "aug.csv", ("01-08-2026", "Shop", "-10,00"))
+
+    batch = ImportBatch.read(formula, [path])
+
+    assert batch.existing_coverage == [DateRange(date(2026, 7, 1), date(2026, 7, 31))]
+    assert not batch.plan(batch.sources[0]).first_import
+
+
+def test_corrupt_converted_file_outside_the_batch_is_not_read(tmp_path, formula):
+    formula.outpath.mkdir()
+    (formula.outpath / "spk-20260630-20260601.csv").write_text("garbage,row\n1,2\n")
+    path = export(tmp_path / "july.csv", ("01-07-2026", "Shop", "-10,00"))
+
+    batch = ImportBatch.read(formula, [path])
+
+    assert len(batch.plan(batch.sources[0]).new) == 1
+
+
+def test_corrupt_converted_file_inside_the_batch_is_an_error(tmp_path, formula):
+    formula.outpath.mkdir()
+    (formula.outpath / "spk-20260731-20260701.csv").write_text("garbage,row\n1,2\n")
+    path = export(tmp_path / "july.csv", ("15-07-2026", "Shop", "-10,00"))
+
+    with pytest.raises(StoreError, match=r"spk-20260731-20260701\.csv: not a valid YNAB CSV"):
+        ImportBatch.read(formula, [path])
+
+
+def test_counts_new_rows_on_dates_already_imported(tmp_path, formula):
+    stored(formula.archivepath, "spk-20260731-20260701.csv")
+    stored(
+        formula.outpath,
+        "spk-20260731-20260701.csv",
+        Transaction(date(2026, 7, 30), "Shop", Decimal("-10.00")),
+    )
+    path = export(
+        tmp_path / "aug.csv",
+        ("30-07-2026", "SHOP 1234", "-10,00"),  # same row, text changed by the bank
+        ("31-07-2026", "Late", "-1,00"),
+        ("01-08-2026", "Bus", "-3,00"),
+    )
+    batch = ImportBatch.read(formula, [path])
+
+    plan = batch.plan(batch.sources[0])
+
+    assert len(plan.new) == 3
+    assert plan.new_on_imported_dates == 2
+    assert not plan.already_imported
+
+
+def test_archive_drops_a_suffix_the_store_cannot_read():
+    assert _archive_suffix(Path("export.xlsx")) == ".xlsx"
+    assert _archive_suffix(Path("export.csv~")) == ""
+    assert _archive_suffix(Path("export")) == ""

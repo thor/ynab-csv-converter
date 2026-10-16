@@ -51,6 +51,8 @@ def load_formula(path: Path) -> Formula:
             data = yaml.safe_load(handle)
     except FileNotFoundError:
         raise FormulaError(path, "file not found") from None
+    except UnicodeDecodeError:
+        raise FormulaError(path, "not UTF-8 text") from None
     except yaml.YAMLError as error:
         raise FormulaError(path, f"invalid YAML: {error}") from error
     return parse_formula(path, data)

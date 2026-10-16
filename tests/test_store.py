@@ -1,3 +1,4 @@
+import re
 from datetime import date
 
 import pytest
@@ -59,11 +60,23 @@ def test_ignores_unrelated_files(tmp_path):
         "spk-20261399-20261301.csv",  # no such date
         "spk-20260701-20260731.csv",  # range backwards
         "spk-euro-20260731-20260701.csv",  # other prefix
-        "spk-20260731-20260701.csv.bak",
+        ".spk-20260731-20260701.csv.tmp",
     )
     (tmp_path / "spk-20260831-20260801.csv").mkdir()
 
     assert list_files(tmp_path, "spk") == []
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["spk-20260731-20260701 copy.csv", "spk-20260731-20260701 (1).csv", "spk-20260731-20260701.csv.bak"],
+)
+def test_lookalike_name_is_an_error(tmp_path, name):
+    # Skipping it would drop its rows from the dedup baseline.
+    touch(tmp_path, "spk-20260630-20260601.csv", name)
+
+    with pytest.raises(StoreError, match=rf"{re.escape(name)}: .* Rename or remove it"):
+        list_files(tmp_path, "spk")
 
 
 def test_converted_files_are_csv_only(tmp_path):

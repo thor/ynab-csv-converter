@@ -76,3 +76,11 @@ def test_rejects_bad_formula_naming_the_file(tmp_path, text, message):
 def test_missing_file(tmp_path):
     with pytest.raises(FormulaError, match="file not found"):
         load_formula(tmp_path / "nope.yml")
+
+
+def test_non_utf8_formula(tmp_path):
+    path = tmp_path / "formula.yml"
+    path.write_bytes(BASE.replace("out\n", "\u00d8konomi\n", 1).encode("latin-1"))
+
+    with pytest.raises(FormulaError, match="not UTF-8 text"):
+        load_formula(path)

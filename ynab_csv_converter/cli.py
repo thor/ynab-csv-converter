@@ -1,6 +1,5 @@
 """Command line interface."""
 
-import csv
 import functools
 from datetime import date
 from pathlib import Path
@@ -15,14 +14,15 @@ from . import __version__
 from .consolidate import consolidate as merge_converted
 from .consolidate import plan_consolidation
 from .convert import ImportBatch, Plan, SourceError, apply, existing_coverage
-from .coverage import days_since, holes, merge
+from .coverage import holes, merge
 from .formula import Formula, FormulaError, load_formula
 from .providers import PROVIDERS
 from .providers.base import ParseError
 from .store import StoreError
 
 PREVIEW_ROWS = 15
-USER_ERRORS = (FormulaError, ParseError, SourceError, StoreError, OSError, ValueError, csv.Error)
+# Parsers and stores wrap their ValueError and csv.Error with the file name. Anything else is a bug.
+USER_ERRORS = (FormulaError, ParseError, SourceError, StoreError, OSError)
 
 app = typer.Typer(
     help="Convert bank exports to YNAB CSV, skipping transactions you already imported.",
@@ -118,12 +118,14 @@ def run_import(formula_path: Path, files: list[Path], *, yes: bool, allow_gaps: 
         if not write:
             batch.record(plan)
             continue
-        if yes or typer.confirm(f"Convert {source.path.name}?", default=not plan.gaps):
+        default = not plan.gaps and not plan.already_imported
+        if yes or typer.confirm(f"Convert {source.path.name}?", default=default):
             applied = apply(formula, plan)
             batch.record(plan)
             if applied.converted:
                 out.print(
-                    f"Wrote {len(plan.new)} transactions to {escape(str(applied.converted))}", soft_wrap=True
+                    f"Wrote {plural(len(plan.new), 'transaction')} to {escape(str(applied.converted))}",
+                    soft_wrap=True,
                 )
             out.print(f"Archived to {escape(str(applied.archived))}", soft_wrap=True)
         else:
@@ -145,17 +147,26 @@ def show_plan(formula: Formula, plan: Plan):
     if formula.factor != 1:
         out.print(f"Factor    {formula.factor}")
     if source.span:
-        out.print(f"Dates     {source.span} ({source.span.days} days)")
+        out.print(f"Dates     {source.span} ({plural(source.span.days, 'day')})")
     out.print(
         f"Rows      {len(source.transactions)} read, [green]{len(plan.new)} new[/green], "
         f"{plan.duplicate_count} already converted"
     )
     if plan.first_import:
-        out.print("[blue]First import for this formula, nothing to compare against.[/blue]")
+        outpath = escape(str(formula.outpath.resolve()))
+        out.print(f"[blue]First import for this formula (nothing in {outpath} yet).[/blue]", soft_wrap=True)
     for gap in plan.gaps:
         out.print(f"[bold yellow]! {gap}[/bold yellow]", soft_wrap=True)
     if plan.already_imported:
         out.print("[yellow]Already imported: every row is in the converted files.[/yellow]")
+    if plan.new_on_imported_dates:
+        count = plan.new_on_imported_dates
+        rows = f"{plural(count, 'new row')} {'falls' if count == 1 else 'fall'}"
+        out.print(
+            f"[yellow]! {rows} on dates already imported. "
+            "Check they are not duplicates with changed text.[/yellow]",
+            soft_wrap=True,
+        )
     if plan.new:
         out.print(transactions_table(plan.new))
 
@@ -200,10 +211,10 @@ def status(formula: FormulaArg):
 
     for hole in holes(coverage):
         style = "bold yellow" if hole.days > loaded.max_gap_days else "dim"
-        out.print(f"[{style}]Missing {hole} ({hole.days} days)[/{style}]")
+        out.print(f"[{style}]Missing {hole} ({plural(hole.days, 'day')})[/{style}]")
 
     newest = coverage[-1].last
-    out.print(f"Last import ends {newest}, {days_since(newest, date.today())} days ago.")
+    out.print(f"Last import ends {newest}, {plural((date.today() - newest).days, 'day')} ago.")
 
 
 @app.command()
@@ -213,17 +224,28 @@ def consolidate(formula: FormulaArg, yes: YesOption = False):
     loaded = load_formula(formula)
     plan = plan_consolidation(loaded)
     if len(plan.originals) < 2:
-        out.print(f"Nothing to consolidate: {len(plan.originals)} converted file(s).")
+        out.print(f"Nothing to consolidate: {plural(len(plan.originals), 'converted file')}.")
         return
 
-    out.print(f"Merge {len(plan.originals)} files with {len(plan.transactions)} transactions ({plan.span}):")
+    files = plural(len(plan.originals), "file")
+    transactions = plural(len(plan.transactions), "transaction")
+    dates = f" ({plan.span})" if plan.span else ""
+    out.print(f"Merge {files} with {transactions}{dates}:")
     for stored in plan.originals:
         out.print(f"  {escape(stored.path.name)}", soft_wrap=True)
     if not yes and not typer.confirm("Merge and delete the originals?", default=True):
         out.print("Nothing changed.")
         return
     merged = merge_converted(loaded, plan)
-    out.print(f"Wrote {escape(str(merged))}, removed {len(plan.originals)} files.", soft_wrap=True)
+    removed = f"removed {plural(len(plan.originals), 'file')}"
+    if merged is None:
+        out.print(f"No transactions, {removed}.")
+    else:
+        out.print(f"Wrote {escape(str(merged))}, {removed}.", soft_wrap=True)
+
+
+def plural(count: int, noun: str) -> str:
+    return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
 
 
 @app.command()
