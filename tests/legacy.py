@@ -7,6 +7,8 @@ import importlib
 import locale
 from decimal import Decimal
 
+import pytest
+
 from ynab_csv_converter.transaction import Transaction
 
 
@@ -15,6 +17,8 @@ def legacy_transactions(format_key: str, path) -> list[Transaction]:
     saved_locale = locale.setlocale(locale.LC_ALL)
     try:
         return _convert(format_key, path)
+    except locale.Error as error:
+        pytest.skip(f"legacy {format_key} needs a locale this machine lacks: {error}")
     finally:
         locale.setlocale(locale.LC_ALL, saved_locale)
 
