@@ -19,6 +19,8 @@ NumberedRow = tuple[int, Row]
 
 RowReader = Callable[[Path], Iterable[NumberedRow]]
 RowParser = Callable[[Row], Transaction | None]
+CsvConverter = Callable[[Path, Path], None]
+"""Writes the workbook at the first path as CSV to the second path."""
 
 
 @dataclass(frozen=True)
@@ -27,12 +29,16 @@ class Provider:
 
     `read_rows` knows the file format (see `sources`). `parse_row` knows the bank's
     conventions and returns None for rows that are not transactions.
+
+    `csv_from_xlsx` is for banks that switched from CSV to xlsx exports: the workbook is
+    saved as the old CSV first, then parsed and archived like the CSVs before it.
     """
 
     key: str
     name: str
     read_rows: RowReader
     parse_row: RowParser
+    csv_from_xlsx: CsvConverter | None = None
 
     def read_transactions(self, path: Path) -> list[Transaction]:
         transactions = []

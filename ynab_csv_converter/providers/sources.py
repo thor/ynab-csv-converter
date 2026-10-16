@@ -6,9 +6,10 @@ Each factory returns a `RowReader`. Blank rows are skipped everywhere.
 import csv
 import zipfile
 from collections.abc import Iterator, Mapping
+from datetime import date
 from pathlib import Path
 
-from .base import NumberedRow, RowReader
+from .base import CsvConverter, NumberedRow, RowReader
 
 
 def csv_source(
@@ -68,6 +69,31 @@ def by_suffix(readers: Mapping[str, RowReader]) -> RowReader:
         yield from readers[suffix](path)
 
     return read
+
+
+def xlsx_to_csv(
+    *, date_format: str, delimiter: str = ",", encoding: str = "utf-8-sig", sheet: str | None = None
+) -> CsvConverter:
+    """Save a workbook as CSV the way banks export it: dates in `date_format`, numbers without
+    trailing zeros (-40, 13.97075), empty cells as empty strings."""
+
+    def convert(xlsx_path: Path, csv_path: Path) -> None:
+        with open(csv_path, "w", encoding=encoding, newline="") as handle:
+            writer = csv.writer(handle, delimiter=delimiter)
+            for _, row in xlsx_source(sheet=sheet)(xlsx_path):
+                writer.writerow([_as_csv_text(cell, date_format) for cell in row])
+
+    return convert
+
+
+def _as_csv_text(cell, date_format: str) -> str:
+    if cell is None:
+        return ""
+    if isinstance(cell, date):
+        return cell.strftime(date_format)
+    if isinstance(cell, float) and cell.is_integer():
+        return str(int(cell))
+    return str(cell)
 
 
 def _numbered(rows: Iterator[NumberedRow], skip_rows: int, keyed_by_header: bool) -> Iterator[NumberedRow]:

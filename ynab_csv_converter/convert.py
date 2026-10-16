@@ -8,6 +8,7 @@ batch dedup against it. Preview is the same flow without `apply`.
 import csv
 import re
 import shutil
+import tempfile
 from collections import Counter
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
@@ -16,6 +17,7 @@ from pathlib import Path
 from . import store, ynab_csv
 from .coverage import DateRange, Gap, batch_gaps, count_covered, is_already_imported, span_of
 from .formula import Formula
+from .providers.base import ParseError, Provider
 from .transaction import Transaction
 
 
@@ -28,6 +30,8 @@ class Source:
     path: Path
     transactions: list[Transaction]
     """Every transaction in the file, with the formula factor applied."""
+    saved_as_csv: bytes | None = None
+    """The workbook as CSV, when the provider converts xlsx. Archived next to the original."""
 
     @property
     def span(self) -> DateRange | None:
@@ -52,7 +56,7 @@ class Plan:
 @dataclass(frozen=True)
 class Applied:
     converted: Path | None
-    archived: Path
+    archived: list[Path]
 
 
 @dataclass
@@ -110,11 +114,28 @@ class ImportBatch:
 def read_source(formula: Formula, path: Path) -> Source:
     if not path.is_file():
         raise SourceError(f"{path}: file not found")
+    provider = formula.provider
     try:
-        transactions = formula.provider.read_transactions(path)
+        if provider.csv_from_xlsx and path.suffix.lower() == ".xlsx":
+            transactions, saved_as_csv = _read_as_csv(provider, path)
+        else:
+            transactions, saved_as_csv = provider.read_transactions(path), None
     except (ValueError, csv.Error) as error:
         raise SourceError(f"{path}: {error}") from error
-    return Source(path, [transaction.scaled(formula.factor) for transaction in transactions])
+    scaled = [transaction.scaled(formula.factor) for transaction in transactions]
+    return Source(path, scaled, saved_as_csv)
+
+
+def _read_as_csv(provider: Provider, xlsx_path: Path) -> tuple[list[Transaction], bytes]:
+    with tempfile.TemporaryDirectory() as folder:
+        csv_path = Path(folder) / f"{xlsx_path.stem}.csv"
+        provider.csv_from_xlsx(xlsx_path, csv_path)
+        try:
+            transactions = provider.read_transactions(csv_path)
+        except ParseError as error:
+            # Name the file the user gave, not the temporary CSV.
+            raise ParseError(xlsx_path, error.line_number, error.row, error.__cause__) from error.__cause__
+        return transactions, csv_path.read_bytes()
 
 
 def existing_coverage(formula: Formula) -> list[DateRange]:
@@ -174,10 +195,16 @@ def apply(formula: Formula, plan: Plan) -> Applied:
         ynab_csv.write(converted, plan.new)
 
     formula.archivepath.mkdir(parents=True, exist_ok=True)
-    archived = store.free_path(
+    archived = []
+    if plan.source.saved_as_csv is not None:
+        saved = store.free_path(formula.archivepath, formula.outprefix, span, ".csv")
+        saved.write_bytes(plan.source.saved_as_csv)
+        archived.append(saved)
+    original = store.free_path(
         formula.archivepath, formula.outprefix, span, _archive_suffix(plan.source.path)
     )
-    shutil.move(plan.source.path, archived)
+    shutil.move(plan.source.path, original)
+    archived.append(original)
     return Applied(converted, archived)
 
 

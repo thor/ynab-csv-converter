@@ -133,7 +133,8 @@ def run_import(formula_path: Path, files: list[Path], *, yes: bool, allow_gaps: 
                     f"Wrote {plural(len(plan.new), 'transaction')} to {escape(str(applied.converted))}",
                     soft_wrap=True,
                 )
-            out.print(f"Archived to {escape(str(applied.archived))}", soft_wrap=True)
+            for archived in applied.archived:
+                out.print(f"Archived to {escape(str(archived))}", soft_wrap=True)
         else:
             batch.decline(source)
             out.print("Skipped.")
@@ -150,6 +151,8 @@ def show_plan(formula: Formula, plan: Plan):
     out.rule(f"[bold]{escape(source.path.name)}[/bold]", align="left")
     provider = formula.provider
     out.print(f"Provider  {escape(provider.name)} ({provider.key})")
+    if source.saved_as_csv is not None:
+        out.print("Workbook  read as CSV; the CSV is archived next to the original")
     if formula.factor != 1:
         out.print(f"Factor    {formula.factor}")
     if source.span:

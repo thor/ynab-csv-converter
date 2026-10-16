@@ -75,7 +75,7 @@ A name that starts like one but does not match, e.g. `... copy.csv`, stops the r
 |---|---|
 | `americanexpress` | American Express |
 | `banknordik` | BankNordik |
-| `banknorwegian` | Bank Norwegian |
+| `banknorwegian` | Bank Norwegian (.csv or .xlsx) |
 | `danskebank` | Danske Bank (tab separated) |
 | `eika` | Eika and other SDC portal banks |
 | `hypovereinsbank` | HypoVereinsbank |
@@ -118,6 +118,11 @@ Row sources live in `providers/sources.py`:
 - `csv_source(encoding=, delimiter=, skip_rows=, keyed_by_header=)`
 - `xlsx_source(sheet=, skip_rows=, keyed_by_header=)` gives native cell values (datetime, float)
 - `by_suffix({".csv": csv_source(...), ".xlsx": xlsx_source(...)})` picks one by file suffix
+
+When a bank switches from CSV to xlsx exports, keep the CSV parser and add
+`csv_from_xlsx=xlsx_to_csv(date_format=...)` to the provider. The workbook is saved as the old CSV
+before import, so parsing and duplicate detection work as before. Both files go to the archive.
+`banknorwegian` does this.
 
 Parse errors report file, line, cause and the raw row.
 
