@@ -31,6 +31,8 @@ def home(tmp_path) -> Path:
         f"format: sparekassen\noutpath: {tmp_path}/out\narchivepath: {tmp_path}/archive\noutprefix: spk\n"
     )
     (tmp_path / "formula.yml").write_text(formula)
+    (tmp_path / "out").mkdir()
+    (tmp_path / "archive").mkdir()
     return tmp_path
 
 
@@ -183,7 +185,7 @@ def test_dry_run_writes_nothing(home):
     assert "4 new" in result.output
     assert "Dry run: nothing written." in result.output
     assert Path(source).exists()
-    assert not (home / "out").exists() and not (home / "archive").exists()
+    assert names(home / "out") == [] and names(home / "archive") == []
 
 
 def test_preview_is_a_dry_run_even_with_gaps(home):
@@ -219,10 +221,10 @@ def test_status(home):
 
 
 def test_status_shows_gap_hidden_by_a_consolidated_file(home):
-    (home / "archive").mkdir()
+    (home / "archive").mkdir(exist_ok=True)
     (home / "archive" / "spk-20260203-20260201.csv").write_text("")
     (home / "archive" / "spk-20260310-20260310.csv").write_text("")
-    (home / "out").mkdir()
+    (home / "out").mkdir(exist_ok=True)
     (home / "out" / "spk-20260310-20260201.csv").write_text("")
 
     result = run(home, "status")
@@ -231,8 +233,21 @@ def test_status_shows_gap_hidden_by_a_consolidated_file(home):
     assert "Missing 2026-02-04 to 2026-03-09 (34 days)" in result.output
 
 
+def test_status_ignores_gaps_up_to_max_gap_days(home):
+    for name in ["spk-20260710-20260701", "spk-20260720-20260712", "spk-20260731-20260725"]:
+        (home / "archive" / f"{name}.csv").write_text("")
+    (home / "archive" / "spk-20260930-20260901.csv").write_text("")
+
+    result = run(home, "status")
+
+    assert "2026-07-01 │ 2026-07-31" in result.output
+    assert "Missing 2026-08-01 to 2026-08-31 (31 days)" in result.output
+    assert "Missing 2026-07-11" not in result.output
+    assert "Ignored 2 gaps of 7 days or less." in result.output
+
+
 def test_status_pluralises_one_day(home):
-    (home / "archive").mkdir()
+    (home / "formula.yml").write_text((home / "formula.yml").read_text() + "max_gap_days: 0\n")
     (home / "archive" / "spk-20260701-20260701.csv").write_text("")
     (home / "archive" / "spk-20260703-20260703.csv").write_text("")
 
@@ -242,7 +257,18 @@ def test_status_pluralises_one_day(home):
 
 
 def test_status_without_imports(home):
-    assert "No imports yet." in run(home, "status").output
+    assert "No imports yet in" in run(home, "status").output
+
+
+@pytest.mark.parametrize("command", ["status", "consolidate", "preview"])
+def test_missing_folder_is_an_error_not_an_empty_history(home, command):
+    (home / "archive").rmdir()
+    args = [export(home, "july.csv", JULY)] if command == "preview" else []
+
+    result = run(home, command, *args)
+
+    assert result.exit_code == 1
+    assert f"archivepath folder not found: {home / 'archive'}" in result.output
 
 
 def test_consolidate(home):
@@ -259,7 +285,7 @@ def test_consolidate(home):
 
 
 def test_consolidate_empty_files(home):
-    (home / "out").mkdir()
+    (home / "out").mkdir(exist_ok=True)
     (home / "out" / "spk-20260710-20260701.csv").write_text("Date,Payee,Category,Memo,Outflow,Inflow\n")
     (home / "out" / "spk-20260731-20260720.csv").write_text("Date,Payee,Category,Memo,Outflow,Inflow\n")
 

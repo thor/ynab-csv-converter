@@ -55,12 +55,15 @@ One YAML file per account:
 
 ```yml
 format: sparekassen          # see `ynab-csv-converter providers`
-outpath: ~/ynab/converted    # ~ and $VARS are expanded
-archivepath: ~/ynab/archive  # must differ from outpath
+outpath: ../converted        # relative to this file's folder; ~ and $VARS work too
+archivepath: archive         # must exist and differ from outpath
 outprefix: sparekassen-euro
 factor: 7.45                 # optional, multiplies every amount (EUR -> DKK)
 max_gap_days: 7              # optional, missing days allowed before warning
 ```
+
+Relative paths make a formula portable, e.g. inside a synced folder used from several machines.
+Both folders must exist: a wrong path stops with an error instead of starting an empty history.
 
 Files are named `<outprefix>-<newest date>-<oldest date>[-n].<suffix>`, so the newest sort last.
 The archive keeps the export's own suffix, e.g. `.xlsx`.

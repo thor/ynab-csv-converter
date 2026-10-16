@@ -20,8 +20,8 @@ def test_loads_minimal_formula_with_defaults(tmp_path):
     assert formula == Formula(
         path=tmp_path / "formula.yml",
         format="sparekassen",
-        outpath=Path("out"),
-        archivepath=Path("archive"),
+        outpath=tmp_path / "out",
+        archivepath=tmp_path / "archive",
         outprefix="spk",
         factor=Decimal(1),
         max_gap_days=7,
@@ -84,3 +84,24 @@ def test_non_utf8_formula(tmp_path):
 
     with pytest.raises(FormulaError, match="not UTF-8 text"):
         load_formula(path)
+
+
+def test_relative_paths_start_at_the_formula_folder(tmp_path, monkeypatch):
+    monkeypatch.chdir("/")
+    text = BASE.replace("outpath: out", "outpath: ../converted")
+
+    formula = load_formula(write(tmp_path, text))
+
+    assert formula.outpath == tmp_path.parent / "converted"
+    assert formula.archivepath == tmp_path / "archive"
+
+
+def test_require_folders(tmp_path):
+    formula = load_formula(write(tmp_path, BASE))
+    (tmp_path / "out").mkdir()
+
+    with pytest.raises(FormulaError, match="archivepath folder not found"):
+        formula.require_folders()
+
+    (tmp_path / "archive").mkdir()
+    formula.require_folders()

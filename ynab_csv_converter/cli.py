@@ -103,8 +103,14 @@ def preview(formula: FormulaArg, files: FilesArg):
     run_import(formula, files, yes=True, allow_gaps=True, dry_run=True)
 
 
+def load_formula_with_folders(path: Path) -> Formula:
+    formula = load_formula(path)
+    formula.require_folders()
+    return formula
+
+
 def run_import(formula_path: Path, files: list[Path], *, yes: bool, allow_gaps: bool, dry_run: bool):
-    formula = load_formula(formula_path)
+    formula = load_formula_with_folders(formula_path)
     batch = ImportBatch.read(formula, files)
     refuse_gaps = yes and batch.has_gaps and not allow_gaps and not dry_run
     write = not dry_run and not refuse_gaps
@@ -195,23 +201,26 @@ def transactions_table(transactions) -> Table:
 @friendly_errors
 def status(formula: FormulaArg):
     """Show which dates are imported, the gaps between them, and the newest date."""
-    loaded = load_formula(formula)
+    loaded = load_formula_with_folders(formula)
     coverage = merge(existing_coverage(loaded))
     if not coverage:
-        out.print("No imports yet.")
+        out.print(f"No imports yet in {loaded.archivepath}.", soft_wrap=True)
         return
+    blocks = merge(coverage, loaded.max_gap_days)
 
     table = Table(title="Imported dates", title_justify="left", show_edge=False, pad_edge=False)
     table.add_column("From")
     table.add_column("To")
     table.add_column("Days", justify="right")
-    for block in coverage:
+    for block in blocks:
         table.add_row(str(block.first), str(block.last), str(block.days))
     out.print(table)
 
-    for hole in holes(coverage):
-        style = "bold yellow" if hole.days > loaded.max_gap_days else "dim"
-        out.print(f"[{style}]Missing {hole} ({plural(hole.days, 'day')})[/{style}]")
+    for gap in holes(blocks):
+        out.print(f"[bold yellow]Missing {gap} ({plural(gap.days, 'day')})[/bold yellow]")
+    small_holes = len(holes(coverage)) - len(holes(blocks))
+    if small_holes:
+        out.print(f"[dim]Ignored {plural(small_holes, 'gap')} of {loaded.max_gap_days} days or less.[/dim]")
 
     newest = coverage[-1].last
     out.print(f"Last import ends {newest}, {plural((date.today() - newest).days, 'day')} ago.")
@@ -221,7 +230,7 @@ def status(formula: FormulaArg):
 @friendly_errors
 def consolidate(formula: FormulaArg, yes: YesOption = False):
     """Merge all converted files of a formula into one file."""
-    loaded = load_formula(formula)
+    loaded = load_formula_with_folders(formula)
     plan = plan_consolidation(loaded)
     if len(plan.originals) < 2:
         out.print(f"Nothing to consolidate: {plural(len(plan.originals), 'converted file')}.")

@@ -47,6 +47,19 @@ def test_merge_keeps_one_day_hole():
     ]
 
 
+def test_merge_bridges_holes_up_to_max_gap_days():
+    ranges = [
+        span("2026-07-01", "2026-07-10"),
+        span("2026-07-13", "2026-07-20"),
+        span("2026-07-29", "2026-07-31"),
+    ]
+
+    assert merge(ranges, max_gap_days=2) == [
+        span("2026-07-01", "2026-07-20"),
+        span("2026-07-29", "2026-07-31"),
+    ]
+
+
 def test_holes():
     assert holes([month(1), month(3), month(6)]) == [month(2), span("2026-04-01", "2026-05-31")]
     assert holes([]) == []

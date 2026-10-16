@@ -47,11 +47,14 @@ def span_of(transactions: Iterable[Transaction]) -> DateRange | None:
     return DateRange.spanning(dates) if dates else None
 
 
-def merge(ranges: Iterable[DateRange]) -> list[DateRange]:
-    """Union of ranges. Overlapping and back-to-back ranges become one."""
+def merge(ranges: Iterable[DateRange], max_gap_days: int = 0) -> list[DateRange]:
+    """Union of ranges. Overlapping and back-to-back ranges become one.
+
+    With `max_gap_days`, ranges separated by that many missing days or fewer also become one.
+    """
     merged: list[DateRange] = []
     for current in sorted(ranges):
-        if merged and current.first <= merged[-1].last + ONE_DAY:
+        if merged and current.first <= merged[-1].last + timedelta(days=max_gap_days + 1):
             merged[-1] = DateRange(merged[-1].first, max(merged[-1].last, current.last))
         else:
             merged.append(current)

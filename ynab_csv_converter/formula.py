@@ -4,7 +4,7 @@ Example:
 
     format: sparekassen
     outpath: ~/ynab/converted
-    archivepath: $HOME/ynab/archive
+    archivepath: $HOME/ynab/archive   # relative paths start at the formula's folder
     outprefix: sparekassen-euro
     factor: 7.45        # optional, multiplies every amount
     max_gap_days: 7     # optional, missing days tolerated before warning
@@ -43,6 +43,14 @@ class Formula:
     @property
     def provider(self) -> Provider:
         return PROVIDERS[self.format]
+
+    def require_folders(self) -> None:
+        """Fail on a missing folder. Treating it as empty would restart the import history."""
+        for key, folder in (("outpath", self.outpath), ("archivepath", self.archivepath)):
+            if not folder.is_dir():
+                raise FormulaError(
+                    self.path, f"{key} folder not found: {folder}\n  Fix the path, or create the folder."
+                )
 
 
 def load_formula(path: Path) -> Formula:
@@ -96,7 +104,8 @@ def _format(path: Path, value: object) -> str:
 def _folder(path: Path, key: str, value: object) -> Path:
     if not isinstance(value, str) or not value or "\0" in value:
         raise FormulaError(path, f"{key} must be a folder path")
-    return Path(os.path.expanduser(os.path.expandvars(value)))
+    folder = Path(os.path.expanduser(os.path.expandvars(value)))
+    return Path(os.path.normpath(folder if folder.is_absolute() else path.absolute().parent / folder))
 
 
 def _prefix(path: Path, value: object) -> str:
