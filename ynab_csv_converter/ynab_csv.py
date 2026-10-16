@@ -24,14 +24,16 @@ def write(path: Path, transactions: Iterable[Transaction]) -> None:
         writer = csv.writer(handle)
         writer.writerow(HEADER)
         for transaction in transactions:
-            writer.writerow([
-                transaction.date.strftime(DATE_FORMAT),
-                transaction.payee,
-                transaction.category,
-                transaction.memo,
-                f"{transaction.outflow:.2f}",
-                f"{transaction.inflow:.2f}",
-            ])
+            writer.writerow(
+                [
+                    transaction.date.strftime(DATE_FORMAT),
+                    transaction.payee,
+                    transaction.category,
+                    transaction.memo,
+                    f"{transaction.outflow:.2f}",
+                    f"{transaction.inflow:.2f}",
+                ]
+            )
 
 
 def _from_row(row: list[str]) -> Transaction:

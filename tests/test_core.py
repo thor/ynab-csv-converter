@@ -72,5 +72,13 @@ def test_parse_error_names_file_and_line(tmp_path):
     path.write_text("1\nnot a number\n")
     provider = Provider("test", "Test", csv_source(), _first_cell_as_amount)
 
-    with pytest.raises(ParseError, match=r"export\.csv:2: could not parse row \['not a number'\]"):
+    with pytest.raises(ParseError, match=r"export\.csv:2: .*\n  row: \[.not a number.\]"):
         provider.read_transactions(path)
+
+
+def test_keyed_by_header_yields_dicts(tmp_path):
+    path = tmp_path / "export.csv"
+    path.write_text("Title line\nDato;Beløp\n01.02.2024;5,00\n")
+    rows = list(csv_source(delimiter=";", skip_rows=1, keyed_by_header=True)(path))
+
+    assert rows == [(3, {"Dato": "01.02.2024", "Beløp": "5,00"})]

@@ -4,12 +4,22 @@ Delete together with ynab_csv_converter/formats/.
 """
 
 import importlib
+import locale
 from decimal import Decimal
 
 from ynab_csv_converter.transaction import Transaction
 
 
 def legacy_transactions(format_key: str, path) -> list[Transaction]:
+    """Legacy parsers call locale.setlocale; restore it so tests stay independent."""
+    saved_locale = locale.setlocale(locale.LC_ALL)
+    try:
+        return _convert(format_key, path)
+    finally:
+        locale.setlocale(locale.LC_ALL, saved_locale)
+
+
+def _convert(format_key: str, path) -> list[Transaction]:
     module = importlib.import_module(f"ynab_csv_converter.formats.{format_key}")
     return [
         Transaction(

@@ -11,23 +11,32 @@ from .base import NumberedRow, RowReader
 
 
 def csv_source(
-    *, encoding: str = "utf-8", delimiter: str = ",", skip_rows: int = 0, quotechar: str = '"'
+    *,
+    encoding: str = "utf-8",
+    delimiter: str = ",",
+    quotechar: str = '"',
+    skip_rows: int = 0,
+    keyed_by_header: bool = False,
 ) -> RowReader:
-    """Read a CSV file. `skip_rows` drops header lines."""
+    """Read a CSV file.
+
+    `skip_rows` drops leading lines. With `keyed_by_header`, the next line is the header
+    and rows are dicts keyed by it.
+    """
 
     def read(path: Path) -> Iterator[NumberedRow]:
         with open(path, encoding=encoding, newline="") as handle:
             reader = csv.reader(handle, delimiter=delimiter, quotechar=quotechar)
-            for row in reader:
-                if reader.line_num <= skip_rows or _is_blank(row):
-                    continue
-                yield reader.line_num, row
+            yield from _numbered(((reader.line_num, row) for row in reader), skip_rows, keyed_by_header)
 
     return read
 
 
-def xlsx_source(*, sheet: str | None = None, skip_rows: int = 0) -> RowReader:
-    """Read an Excel workbook. Uses the active sheet unless `sheet` is given."""
+def xlsx_source(*, sheet: str | None = None, skip_rows: int = 0, keyed_by_header: bool = False) -> RowReader:
+    """Read an Excel workbook. Uses the active sheet unless `sheet` is given.
+
+    `skip_rows` and `keyed_by_header` work as for `csv_source`.
+    """
 
     def read(path: Path) -> Iterator[NumberedRow]:
         from openpyxl import load_workbook
@@ -35,10 +44,8 @@ def xlsx_source(*, sheet: str | None = None, skip_rows: int = 0) -> RowReader:
         workbook = load_workbook(path, read_only=True, data_only=True)
         try:
             worksheet = workbook[sheet] if sheet else workbook.active
-            for line_number, row in enumerate(worksheet.iter_rows(values_only=True), start=1):
-                if line_number <= skip_rows or _is_blank(row):
-                    continue
-                yield line_number, row
+            rows = enumerate(worksheet.iter_rows(values_only=True), start=1)
+            yield from _numbered(rows, skip_rows, keyed_by_header)
         finally:
             workbook.close()
 
@@ -56,6 +63,17 @@ def by_suffix(readers: Mapping[str, RowReader]) -> RowReader:
         yield from readers[suffix](path)
 
     return read
+
+
+def _numbered(rows: Iterator[NumberedRow], skip_rows: int, keyed_by_header: bool) -> Iterator[NumberedRow]:
+    header = None
+    for line_number, row in rows:
+        if line_number <= skip_rows or _is_blank(row):
+            continue
+        if keyed_by_header and header is None:
+            header = [str(cell).strip() for cell in row]
+            continue
+        yield line_number, dict(zip(header, row, strict=False)) if header else row
 
 
 def _is_blank(row) -> bool:
