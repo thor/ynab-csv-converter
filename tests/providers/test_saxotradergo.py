@@ -2,6 +2,7 @@ import locale
 from datetime import date, datetime
 from decimal import Decimal
 
+import pytest
 from openpyxl import Workbook
 
 from ynab_csv_converter.providers.saxotradergo import parse_value_date, provider
@@ -62,6 +63,9 @@ def test_month_names_do_not_depend_on_locale():
     saved_locale = locale.setlocale(locale.LC_TIME)
     try:
         locale.setlocale(locale.LC_TIME, "da_DK.UTF-8")  # Danish: "okt", "maj"
+    except locale.Error:
+        pytest.skip("needs the da_DK.UTF-8 locale")
+    try:
         assert parse_value_date("15-oct-2024") == date(2024, 10, 15)
         assert parse_value_date("05-May-2024") == date(2024, 5, 5)
         assert parse_value_date("05-05-2024") == date(2024, 5, 5)

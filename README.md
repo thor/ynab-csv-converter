@@ -7,17 +7,18 @@ It shows a preview before writing anything, and warns when dates are missing bet
 
 ## Run
 
-With [uv](https://docs.astral.sh/uv/) installed:
+With [uv](https://docs.astral.sh/uv/) installed, from a checkout:
 
 ```sh
-# Run without installing
-uvx --from git+https://github.com/andsens/ynab-csv-converter ynab-csv-converter --help
+uv run ynab-csv-converter --help                                  # inside the checkout
+uv run --project ~/src/ynab-csv-converter ynab-csv-converter ...  # from any folder
+uv tool install .                                                 # put ynab-csv-converter on PATH
+```
 
-# Or install it as a tool
-uv tool install git+https://github.com/andsens/ynab-csv-converter
+Once pushed, it also runs straight from git:
 
-# Or from a checkout
-uv run ynab-csv-converter --help
+```sh
+uvx --from git+https://github.com/thor/ynab-csv-converter ynab-csv-converter --help
 ```
 
 ## Use
