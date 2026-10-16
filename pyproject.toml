@@ -1,38 +1,51 @@
-#[tool.flit.metadata]
-#dist-name = "ynab-csv-converter"
-#module = "ynab_csv_converter"
-
-[tool.poetry]
+[project]
 name = "ynab-csv-converter"
-version = "1.0.1"
-description = "A simple CSV-based YNAB converter"
-authors = ["Anders Ingemann <anders@ingemann.de>"]
+version = "2.0.0"
+description = "Convert bank exports to YNAB CSV, skipping transactions you already imported"
+readme = "README.md"
 license = "Apache-2.0"
-homepage = "https://github.com/andsens/ynab-csv-converter"
-classifiers = [
-  "Topic :: Utilities",
-  "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.5",
-  "Programming Language :: Python :: 3.6",
-  "License :: OSI Approved :: MIT License",
+authors = [
+  { name = "Anders Ingemann", email = "anders@ingemann.de" },
+  { name = "Thor K. Høgås", email = "thor@roht.no" },
+]
+requires-python = ">=3.12"
+dependencies = [
+  "openpyxl>=3.1",
+  "pyyaml>=6.0",
+  "typer>=0.12",
 ]
 
-[tool.poetry.dependencies]
-python = "^3.8"
-pyyaml = ">=3.10"
-docopt = ">=0.6.1"
-jsonschema = ">=2.3.0"
-openpyxl = "^3.0.10"
-pandas = "^1.4.4"
-pydantic = "^2.3.0"
+[project.urls]
+Homepage = "https://github.com/thor/ynab-csv-converter"
 
-[tool.poetry.dev-dependencies]
-tox = "^3.26.0"
-flake8 = "^5.0.4"
+[project.scripts]
+ynab-csv-converter = "ynab_csv_converter.cli:app"
 
-[tool.poetry.scripts]
-ynab-csv-converter = "ynab_csv_converter.__main__:main"
+[dependency-groups]
+dev = [
+  "pytest>=8",
+  "ruff>=0.6",
+]
+# Only needed by the legacy formats/ package, which is being replaced by providers/.
+legacy = [
+  "docopt>=0.6.2",
+  "jsonschema>=4",
+  "pandas>=2",
+  "pydantic>=2",
+]
+
+[tool.uv]
+default-groups = ["dev", "legacy"]
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 110
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

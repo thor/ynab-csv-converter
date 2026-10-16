@@ -1,5 +1,7 @@
 *.pyc
+__pycache__/
 /dist
-/.tox
-/ynab_csv_converter.egg-info
+/.venv
 /.direnv
+/.pytest_cache
+/.ruff_cache
