@@ -1,48 +1,130 @@
 # YNAB CSV Converter
 
-Converts bank record CSV files in various formats to YNAB CSV format.
+Converts bank exports to the YNAB CSV import format.
 
-Any previously converted files will be looked up so that a converted
-export only contains unique transactions with respect to already
-converted exports.
+It remembers what you converted before, so each new file only holds transactions YNAB has not seen.
+It shows a preview before writing anything, and warns when dates are missing between imports.
 
-## Installation
+## Run
+
+With [uv](https://docs.astral.sh/uv/) installed:
 
 ```sh
-pip3 install https://github.com/andsens/ynab-csv-converter/archive/master.tar.gz
+# Run without installing
+uvx --from git+https://github.com/andsens/ynab-csv-converter ynab-csv-converter --help
+
+# Or install it as a tool
+uv tool install git+https://github.com/andsens/ynab-csv-converter
+
+# Or from a checkout
+uv run ynab-csv-converter --help
 ```
 
-## Usage
+## Use
 
-Usage: `ynab-csv-converter [options] FORMULA INFILE...`
+```sh
+ynab-csv-converter preview sparekassen.yml ~/Downloads/export.csv   # see what would happen
+ynab-csv-converter convert sparekassen.yml ~/Downloads/*.csv         # preview, confirm, convert
+ynab-csv-converter status sparekassen.yml                            # imported dates, gaps, last import
+ynab-csv-converter consolidate sparekassen.yml                       # merge converted files into one
+ynab-csv-converter providers                                         # supported banks
+```
+
+`convert` shows each file before writing it: date range, new and duplicate rows, and the new transactions.
+Then it asks. Afterwards the converted file lands in `outpath` and the bank export moves to `archivepath`.
+
+Missing dates: if a file starts more than `max_gap_days` after your last import, or ends that long before the next one,
+you see the exact missing span, and the prompt defaults to No:
+
+```
+! Missing 2026-08-01 to 2026-09-01: last import ends 2026-07-31, this file starts 2026-09-02
+Convert sep.csv? [y/N]:
+```
+
+Files given together count as one batch, so converting August and September in one go is not a gap.
+`--yes` skips the prompt but refuses to write when dates are missing, unless you add `--allow-gaps`.
+`--dry-run` (or `preview`) writes nothing. `--debug` shows tracebacks.
 
 ## Formula
 
+One YAML file per account:
+
 ```yml
-format: sparekassen
-outpath: /home/andsens/converted
-archivepath: /home/andsens/archive
+format: sparekassen          # see `ynab-csv-converter providers`
+outpath: ~/ynab/converted    # ~ and $VARS are expanded
+archivepath: ~/ynab/archive  # must differ from outpath
 outprefix: sparekassen-euro
-factor: 7.45
+factor: 7.45                 # optional, multiplies every amount (EUR -> DKK)
+max_gap_days: 7              # optional, missing days allowed before warning
 ```
 
-All settings except `factor` are mandatory.
-The above formula looks for converted files in `/home/andsens/converted/sparekassen-euro-[daterange]`
-and removes transactions from the inputfiles that already exist in those converted
-files.
-All amounts are multiplied by 7.45 (EUR -> DKK).
-Once converted from "sparekassen" format to "ynab" format,
-the transactions are written to `/home/andsens/converted/sparekassen-euro-[daterange]`,
-while the original file is archived at `/home/andsens/archive/sparekassen-euro-[daterange]`.
-
-The `daterange` corresponds to the dates of the latest and earliest transaction
-(in that order, so that newest exports are sorted last).
+Files are named `<outprefix>-<newest date>-<oldest date>[-n].<suffix>`, so the newest sort last.
+The archive keeps the export's own suffix, e.g. `.xlsx`.
 
 ## Supported formats
 
-- DanskeBank (key: danskebank)
-- Sparekassen (key: sparekassen)
-- Lån & Spar (key: laanspar)
-- Nordnet (key: nordnet)
-- HypoVereinsbank (key: hypovereinsbank)
-- SaxoTraderGo Account Statement (key: saxotradergo)
+| Key | Bank |
+|---|---|
+| `americanexpress` | American Express |
+| `banknordik` | BankNordik |
+| `banknorwegian` | Bank Norwegian |
+| `danskebank` | Danske Bank (tab separated) |
+| `eika` | Eika and other SDC portal banks |
+| `hypovereinsbank` | HypoVereinsbank |
+| `laanspar` | Lån & Spar |
+| `nordnet` | Nordnet ("XLS compatible") |
+| `obos.archive` | OBOS Bank, archive export |
+| `obos.recent` | OBOS Bank, recent transactions export |
+| `saxotradergo` | SaxoTraderGo account statement (.xlsx or .csv) |
+| `sparebanken` | Sparebanken |
+| `sparekassen` | Sparekassen Kronjylland |
+| `starmoney` | StarMoney 13 |
+
+## Add a provider
+
+A provider is one module in `ynab_csv_converter/providers/`. It says how to read rows and how to turn a row into a
+`Transaction`. See `sparekassen.py` for the smallest example:
+
+```python
+def parse_row(row: Row) -> Transaction | None:      # None skips the row
+    booking_date, _transaction_date, text, amount, _balance = row
+    return Transaction(
+        date=parse_date(booking_date, "%d-%m-%Y"),
+        payee=text,
+        amount=parse_amount(amount, decimal_mark=",", thousands_mark="."),  # negative is outflow
+    )
+
+provider = Provider(
+    key="sparekassen",
+    name="Sparekassen Kronjylland",
+    read_rows=csv_source(encoding="utf-8-sig", delimiter=";"),
+    parse_row=parse_row,
+)
+```
+
+Then list the module in `providers/__init__.py` and add a test in `tests/providers/`.
+
+Row sources live in `providers/sources.py`:
+
+- `csv_source(encoding=, delimiter=, skip_rows=, keyed_by_header=)`
+- `xlsx_source(sheet=, skip_rows=, keyed_by_header=)` gives native cell values (datetime, float)
+- `by_suffix({".csv": csv_source(...), ".xlsx": xlsx_source(...)})` picks one by file suffix
+
+Parse errors report file, line, cause and the raw row.
+
+## Changes in 2.0
+
+Converted output matches 1.x for valid files, so dedup against old converted files keeps working. Exceptions:
+
+- `americanexpress`: Outflow/Inflow columns are no longer negative. The net amount is unchanged and still dedups.
+- `nordnet`: currency conversion uses decimals. Exact half-cent ties can round one cent differently.
+- `obos.recent` works. 1.x crashed on every row.
+- Two identical transactions on the same day are both kept. 1.x dropped the second if the first was imported before.
+- No system locales needed. Parsing no longer calls `setlocale`.
+
+## Develop
+
+```sh
+uv run pytest
+uv run ruff check . && uv run ruff format .
+```
