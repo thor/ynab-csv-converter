@@ -82,3 +82,40 @@ def test_keyed_by_header_yields_dicts(tmp_path):
     rows = list(csv_source(delimiter=";", skip_rows=1, keyed_by_header=True)(path))
 
     assert rows == [(3, {"Dato": "01.02.2024", "Beløp": "5,00"})]
+
+
+@pytest.mark.parametrize(
+    ("amount", "factor", "expected"),
+    [
+        ("7.45", "0.10", "0.75"),
+        ("-7.45", "0.10", "-0.75"),
+        ("12.34", "1", "12.34"),
+    ],
+)
+def test_scaled_matches_legacy_float_rounding(amount, factor, expected):
+    transaction = Transaction(date(2024, 1, 1), "x", Decimal(amount))
+
+    assert transaction.scaled(Decimal(factor)).amount == Decimal(expected)
+
+
+def test_ynab_csv_read_accepts_legacy_amounts(tmp_path):
+    path = tmp_path / "old.csv"
+    path.write_text(f"{','.join(ynab_csv.HEADER)}\n01/02/2024,Shop,,,-0.00,-5.00\n")
+
+    assert [t.amount for t in ynab_csv.read(path)] == [Decimal("-5.00")]
+
+
+def test_ynab_csv_read_names_line_of_bad_amount(tmp_path):
+    path = tmp_path / "old.csv"
+    path.write_text(f"{','.join(ynab_csv.HEADER)}\n01/02/2024,Shop,,,1.00,0.00\n02/02/2024,Shop,,,abc,0.00\n")
+
+    with pytest.raises(ValueError, match=r"old\.csv:3: Not an amount: 'abc', row \["):
+        ynab_csv.read(path)
+
+
+def test_xlsx_source_rejects_non_workbook(tmp_path):
+    path = tmp_path / "export.xlsx"
+    path.write_text("Amount\n1.5\n")
+
+    with pytest.raises(ValueError, match=r"export\.xlsx: not an Excel workbook"):
+        list(xlsx_source()(path))

@@ -2,10 +2,9 @@
 
 import csv
 from collections.abc import Iterable
-from decimal import Decimal
 from pathlib import Path
 
-from .parsing import parse_date
+from .parsing import parse_amount, parse_date
 from .transaction import Transaction
 
 HEADER = ["Date", "Payee", "Category", "Memo", "Outflow", "Inflow"]
@@ -16,7 +15,15 @@ def read(path: Path) -> list[Transaction]:
     with open(path, encoding="utf-8", newline="") as handle:
         rows = csv.reader(handle)
         next(rows, None)
-        return [_from_row(row) for row in rows if row]
+        transactions = []
+        for row in rows:
+            if not row:
+                continue
+            try:
+                transactions.append(_from_row(row))
+            except ValueError as cause:
+                raise ValueError(f"{path}:{rows.line_num}: {cause}, row {row!r}") from cause
+        return transactions
 
 
 def write(path: Path, transactions: Iterable[Transaction]) -> None:
@@ -41,7 +48,7 @@ def _from_row(row: list[str]) -> Transaction:
     return Transaction(
         date=parse_date(date, DATE_FORMAT),
         payee=payee,
-        amount=Decimal(inflow) - Decimal(outflow),
+        amount=parse_amount(inflow, decimal_mark=".") - parse_amount(outflow, decimal_mark="."),
         memo=memo,
         category=category,
     )

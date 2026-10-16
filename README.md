@@ -117,7 +117,6 @@ Parse errors report file, line, cause and the raw row.
 Converted output matches 1.x for valid files, so dedup against old converted files keeps working. Exceptions:
 
 - `americanexpress`: Outflow/Inflow columns are no longer negative. The net amount is unchanged and still dedups.
-- `nordnet`: currency conversion uses decimals. Exact half-cent ties can round one cent differently.
 - `obos.recent` works. 1.x crashed on every row.
 - Two identical transactions on the same day are both kept. 1.x dropped the second if the first was imported before.
 - No system locales needed. Parsing no longer calls `setlocale`.

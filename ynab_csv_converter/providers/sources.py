@@ -4,6 +4,7 @@ Each factory returns a `RowReader`. Blank rows are skipped everywhere.
 """
 
 import csv
+import zipfile
 from collections.abc import Iterator, Mapping
 from pathlib import Path
 
@@ -40,8 +41,12 @@ def xlsx_source(*, sheet: str | None = None, skip_rows: int = 0, keyed_by_header
 
     def read(path: Path) -> Iterator[NumberedRow]:
         from openpyxl import load_workbook
+        from openpyxl.utils.exceptions import InvalidFileException
 
-        workbook = load_workbook(path, read_only=True, data_only=True)
+        try:
+            workbook = load_workbook(path, read_only=True, data_only=True)
+        except (zipfile.BadZipFile, InvalidFileException) as error:
+            raise ValueError(f"{path}: not an Excel workbook ({error})") from error
         try:
             worksheet = workbook[sheet] if sheet else workbook.active
             rows = enumerate(worksheet.iter_rows(values_only=True), start=1)

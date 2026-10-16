@@ -3,7 +3,7 @@
 from decimal import Decimal
 
 from ..parsing import parse_amount, parse_date
-from ..transaction import Transaction
+from ..transaction import Transaction, scale_amount
 from .base import Provider, Row
 from .sources import csv_source
 
@@ -29,8 +29,8 @@ def parse_row(row: Row) -> Transaction:
         date=parse_date(booking_date, "%Y-%m-%d"),
         payee=payee,
         memo=memo,
-        amount=_parse_number(amount),
-    ).scaled(DKK_PER_UNIT[currency])
+        amount=scale_amount(_parse_number(amount), DKK_PER_UNIT[currency]),
+    )
 
 
 def _trade_memo(quantity: str, price: str, currency: str, exchange_rate: str) -> str:

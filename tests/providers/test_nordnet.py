@@ -76,3 +76,11 @@ def test_accepts_no_break_space_thousands(tmp_path):
         Decimal("1234.56"),
         Decimal("1000.00"),
     ]
+
+
+def test_currency_conversion_matches_legacy_float_rounding(tmp_path):
+    # 0.75 * 7.46 = 5.595: float rounding gives 5.59, Decimal half-even 5.60.
+    row = nordnet_row("2024-03-02", "INDBETALING", "", "", "0", "0", "0,75", "EUR", "0")
+    path = write_export(tmp_path, "\n".join([HEADER, row]) + "\n")
+
+    assert [transaction.amount for transaction in provider.read_transactions(path)] == [Decimal("5.59")]

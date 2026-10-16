@@ -4,7 +4,11 @@ from dataclasses import dataclass, replace
 from datetime import date
 from decimal import Decimal
 
-CENT = Decimal("0.01")
+
+def scale_amount(amount: Decimal, factor: Decimal) -> Decimal:
+    """Multiply and round to cents."""
+    # Reproduces 1.x float rounding so dedup against files converted by 1.x keeps working.
+    return Decimal(format(round(float(amount) * float(factor), 2), ".2f"))
 
 
 @dataclass(frozen=True)
@@ -26,4 +30,6 @@ class Transaction:
 
     def scaled(self, factor: Decimal) -> "Transaction":
         """Convert currency by multiplying the amount, rounded to cents."""
-        return replace(self, amount=(self.amount * factor).quantize(CENT))
+        if factor == 1:
+            return self
+        return replace(self, amount=scale_amount(self.amount, factor))
